@@ -1,3 +1,82 @@
+'''
+This is the ``TimedDict`` class and its various methods and helpers.
+
+``TimedDict`` instances are dictionaries (``MutableMapping`` objects, to be
+more precise) whose keys expire after a predetermined time has elapsed. When
+they expire, a callback function may optionally be executed. The callback
+function is passed the key and value that have just expired.
+
+Using the class is pretty simple.
+
+::
+
+    import time
+    from timed_dict.timed_dict import TimedDict
+
+    d = TimedDict(timeout=10)
+    d['foo'] = 'bar'
+
+    print('Retrieving the key right away...')
+    print(d['foo'])
+    print('Waiting 11 seconds...')
+    time.sleep(11)
+    print('The key is expired, so we get an `Empty()` object.')
+    print(d['foo'])
+
+
+Running this code produces the following output:
+
+::
+
+    Retrieving the key right away...
+    bar
+    Waiting 11 seconds...
+    The key is expired, so we get an `Empty()` object.
+    <timed_dict.timed_dict.Empty object at 0x7ff82003a860>
+
+
+That's the simplest use-case. Often, you'll want something to happen when a
+key expires. For this, you specify a callback function, like so:
+
+::
+
+    import time
+    from timed_dict.timed_dict import TimedDict
+
+    def my_callback(key, value):  # Key and value are required arguments
+	print('The key {key} has expired. Its value was {value}.'.format(
+	    key=str(key), value=str(value)))
+
+
+    d = TimedDict(timeout=10, callback=my_callback)  # Specify callback here
+    d['foo'] = 'bar'
+
+    print('Retrieving the key right away..')
+    print(d['foo'])
+    print('Waiting 11 seconds...')
+    time.sleep(11)
+    print('The key is expired, so we get an `Empty()` object.')
+    print(d['foo'])
+
+
+Running the new code, with the callback function, produces this:
+
+::
+
+    Retrieving the key right away..
+    bar
+    Waiting 11 seconds...
+    The key foo has expired. Its value was bar.
+    The key is expired, so we get an `Empty()` object.
+    <timed_dict.timed_dict.Empty object at 0x7f0a56cfccf8>
+
+
+As you can see, the behavior is identical, except that we now see the output
+from the callback function (on the fourth line).
+
+Other arguments may be passed to the ``TimedDict`` constructor. They are
+documented in its ``__init__`` function below.
+'''
 
 import threading
 import time
@@ -55,6 +134,33 @@ class TimedDict(collections.MutableMapping):
             sample_probability=.25, callback=None,
             expired_keys_ratio=.25, sweep_flag=True, callback_args=None,
             callback_kwargs=None):
+        '''
+        Init function for ``TimedDict``. This automatically creates and starts
+        a thread which intermittantly sweeps through the keys, looking for
+        things to expire.
+
+        Args:
+            timeout (float): Number of seconds after which keys will expire.
+            checks_per_second (float): Approximstely how many timed per second
+                to scan for expired keys.
+            sample_probability (float): Keys are scanned randomly. This is the
+                proportion of keys that will be checked on any given sweep.
+            callback (function): Function to be executed whenever a key expires.
+                The function will be passed the arguments ``key`` and ``value``
+                as (non-keyword) arguments.
+            expired_keys_ratio (float): If the proportion of expired keys that
+                are discovered on a given sweep exceeds this number, then
+                another sweep is executed immediately. This on the theory that
+                if there are many keys to be expired within a random sample,
+                then there are probably a lot more.
+            sweep_flag (bool): If ``True``, the thread runs which starts
+                sweeping through the keys. It is not normally necessary for
+                the user to fuss with this.
+            callback_args (tuple): Positional arguments to be passed to the
+                callback function.
+            callback_kwargs (dict): Dictionary of keyword arguments to be
+                passed to the callback function.
+        '''
         if timeout is None:
             raise Exception(
                 'Must set `timeout` when instantiating `TimedDict`.')
@@ -112,7 +218,7 @@ class TimedDict(collections.MutableMapping):
     def __getitem__(self, key):
         '''
         Gets the item. Before it does so, checks whether the key
-        has expired. If so, it expires the key _first_, before
+        has expired. If so, it expires the key **first**, before
         returning a value.
 
         If the key does not exist (or gets expired during this call)
@@ -215,7 +321,8 @@ class TimedDict(collections.MutableMapping):
         value = self.base_dict[key]
         del self[key]
         if self.callback is not None:
-            self.callback(key, value)
+            self.callback(
+                key, value, *self.callback_args, **self.callback_kwargs)
 
     def stop_sweep(self):
         '''

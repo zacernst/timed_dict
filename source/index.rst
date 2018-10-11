@@ -68,9 +68,24 @@ This module provides that core functionality, implemented as a Python
 dictionary. But it does not require anything other than the standard
 Python library to run. It is dead-simple, reliable, and tested.
 
+Limitations
+^^^^^^^^^^^
 
+If you need strong guarantees or tremendous precision, you won't want to
+use this module. The expiration algorithm is probabilistic, so it's likely that
+keys could expire in a somewhat different order than they were added, for
+example. Keys could also hang around longer than their expiration time.
 
+Generally, these slight imprecisions are not a big deal. Delays in expiring
+keys are usually not more than half a second or so. We're trading off a little
+precision for better performance and simplicity (which translates into
+reliability).
 
+Then there's the GIL. This module uses threading instead of multiprocessing,
+which will send some people into fits of consternation and bitter indignation. But
+if your application is so demanding that the GIL really poses a problem, then
+you're probably better off using a more sophisticated tool, anyway. The GIL
+is fine. Really.
 
 
 Indices and tables
