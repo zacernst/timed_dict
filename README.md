@@ -53,6 +53,13 @@ Use `pip`:
 
 `pip install timeddictionary`
 
+# Documentation
 
+Look in `TimedDictionary.pdf`, in the root directory of this repository. There
+are lots of docstrings in the code, too.
+
+# Contact
+
+Zachary Ernst
 zac.ernst@gmail.com
-
+github: zacernst
