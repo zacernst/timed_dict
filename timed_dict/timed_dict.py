@@ -105,7 +105,7 @@ def my_callback(key, value):
 
 
 class TimedDict(collections.MutableMapping):
-    """
+    '''
     A dictionary whose keys time out. After a pre-determined number
     of seconds, the key and value will be deleted from the dictionary.
     Optionally, a callback function is executed, which is passed
@@ -128,7 +128,8 @@ class TimedDict(collections.MutableMapping):
     Additionally, a check is made to any specific key that's accessed.
     If the key should be expired, then it does so and returns an
     ``Empty`` object.
-    """
+    '''
+
     def __init__(
             self, timeout=None, checks_per_second=.5,
             sample_probability=.25, callback=None,
@@ -187,6 +188,10 @@ class TimedDict(collections.MutableMapping):
         return len(self.base_dict)
 
     def __delitem__(self, key):
+        '''
+        Deletes the key and value from both the ``base_dict``
+        and the ``timed_dict``.
+        '''
         del self.base_dict[key]
         del self.time_dict[key]
 
@@ -351,41 +356,22 @@ def cleanup_sweep_threads():
 
 
 if __name__ == '__main__':
-    d = TimedDict(timeout=10, callback=my_callback)
-    d['foo'] = 'bar'
-    print(d)
-    counter = 0
-    while counter < 100:
-        d[counter] = random.random()
-        time.sleep(random.random() / 100)
-        if random.random() < .1 and len(d) > 0:
-            try:
-                random_key = random.choice(list(d.keys()))
-                print(d[random_key])
-            except:
-                pass
-        counter += 1
-    print('printing...')
-    for i in d.items():
-        print(i)
-    d.set_expiration(50, additional_seconds=300)
+    LICENSE = \
+    """
+    Copyright (C) 2018 Zachary Ernst
+    zac.ernst@gmail.com
 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-LICENSE = \
-"""
-Copyright (C) 2018 Zachary Ernst
-zac.ernst@gmail.com
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    """
+    print(LICENSE)
