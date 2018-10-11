@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/zacernst/timed_dict.svg?branch=master)](https://travis-ci.org/zacernst/timed_dict)
+
 # TimedDict: Dictionary that mimics Redis's EXPIRE
 
 This package provides the `TimedDict` class, which is a dictionary.
