@@ -47,5 +47,12 @@ is instantiated.
 >>> hi foo
 ```
 
+# Installation
+
+Use `pip`:
+
+`pip install timeddictionary`
+
+
 zac.ernst@gmail.com
 
