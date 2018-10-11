@@ -1,5 +1,5 @@
 """
-Copyright (C) 2016 Zachary Ernst
+Copyright (C) 2018 Zachary Ernst
 zac.ernst@gmail.com
 
 This program is free software: you can redistribute it and/or modify
@@ -22,7 +22,6 @@ import collections
 import types
 import logging
 import random
-import atexit
 
 
 logging.basicConfig(level=logging.INFO)
@@ -69,10 +68,13 @@ class TimedDict(collections.MutableMapping):
     ``Empty`` object.
     """
     def __init__(
-            self, timeout=10, checks_per_second=.5,
+            self, timeout=None, checks_per_second=.5,
             sample_probability=.25, callback=None,
             expired_keys_ratio=.25, sweep_flag=True, callback_args=None,
             callback_kwargs=None):
+        if timeout is None:
+            raise Exception(
+                'Must set `timeout` when instantiating `TimedDict`.')
         self.timeout = timeout
         self.callback_args = callback_args or tuple()
         self.callback_kwargs = callback_kwargs or {}
@@ -80,10 +82,12 @@ class TimedDict(collections.MutableMapping):
         self.base_dict = {}
         self.expired_keys_ratio = expired_keys_ratio
         self.time_dict = {}
+        self.callback_dict = {}
         self.sweep_flag = sweep_flag
         self.callback =  callback
         self.sample_probability = sample_probability
-        self.sweep_thread = threading.Thread(daemon=True, target=self.sweep)
+        self.sweep_thread = threading.Thread(
+            daemon=True, target=self.sweep)
         self.sweep_thread.start()
 
     def __len__(self):
@@ -97,7 +101,45 @@ class TimedDict(collections.MutableMapping):
         del self.base_dict[key]
         del self.time_dict[key]
 
+    def set_expiration(self, key, ignore_missing=False,
+            additional_seconds=None, seconds=None):
+        '''
+        Alters the expiration time for a key. If the key is not
+        present, then raise an Exception unless `ignore_missing`
+        is set to `True`.
+
+        Args:
+            key: The key whose expiration we are changing.
+            ignore_missing (bool): If set, then return silently
+                if the key does not exist. Default is `False`.
+            additional_seonds (int): Add this many seconds to the
+                current expiration time.
+            seconds (int): Expire the key this many seconds from now.
+        '''
+        if key not in self.time_dict and ignore_missing:
+            return
+        elif key not in self.time_dict and not ignore_missing:
+            raise Exception('Key missing from `TimedDict` and '
+                '`ignore_missing` is False.')
+        if additional_seconds is not None:
+            self.time_dict[key] += additional_seconds
+        elif seconds is not None:
+            self.time_dict[key] = time.time() + seconds
+
     def __getitem__(self, key):
+        '''
+        Gets the item. Before it does so, checks whether the key
+        has expired. If so, it expires the key _first_, before
+        returning a value.
+
+        If the key does not exist (or gets expired during this call)
+        the method returns an instance of the `Empty` class. We use
+        the `Empty` class (defined above) because we want to avoid
+        raising exceptions, but we also want to allow that the
+        legitimate value of a key might be `None` (or any other default
+        value we like).
+        '''
+
         if key not in self.base_dict:
             return Empty()
         if time.time() >= self.time_dict[key]:
@@ -148,8 +190,15 @@ class TimedDict(collections.MutableMapping):
             for key in self.base_dict.keys()}
         return d.__repr__()
 
-
     def sweep(self):
+        '''
+        This methods runs in a separate thread. So long as
+        `self.sweep_flag` is set, it expires keys according to
+        the process explained in the docstring for the `TimedDict`
+        class. The thread is halted by calling `self.stop_sweep()`,
+        which sets the `self.sweep_flag` to `False`.
+        '''
+
         while self.sweep_flag:
             current_time = time.time()
             expire_keys = set()
@@ -197,10 +246,17 @@ class TimedDict(collections.MutableMapping):
 
 
 def cleanup_sweep_threads():
+    '''
+    Not used. Keeping this function in case we decide not to use
+    daemonized threads and it becomes necessary to clean up the
+    running threads upon exit.
+    '''
+
     for dict_name, obj in globals().items():
         if isinstance(obj, (TimedDict,)):
-            logging.info('Stopping thread for TimedDict {dict_name}'.format(
-                dict_name=dict_name))
+            logging.info(
+                'Stopping thread for TimedDict {dict_name}'.format(
+                    dict_name=dict_name))
             obj.stop_sweep()
 
 
@@ -222,7 +278,4 @@ if __name__ == '__main__':
     print('printing...')
     for i in d.items():
         print(i)
-
-    cleanup_sweep_threads()
-
-
+    d.set_expiration(50, additional_seconds=300)
